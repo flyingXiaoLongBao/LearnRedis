@@ -48,7 +48,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         //生成验证码(阿里云的短信api太麻烦了，模拟生成即可)
         String code = RandomUtil.randomNumbers(6);
         //保存验证码到redis当中
-        stringRedisTemplate.opsForValue().set(LOGIN_CODE_KEY, code, LOGIN_CODE_TTL, TimeUnit.MINUTES);
+        stringRedisTemplate.opsForValue().set(LOGIN_CODE_KEY + phone, code, LOGIN_CODE_TTL, TimeUnit.MINUTES);
         //发送验证码
         log.debug("【短信验证码发送成功】" + phone + ":" + code);
 
@@ -62,8 +62,8 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         if (RegexUtils.isPhoneInvalid(loginForm.getPhone())) {//手机号不符合，返回错误信息
             return Result.fail("手机号格式错误");
         }
-        //TODO 校验验证码（修改为从redis中获取）
-        String cacheCode = (String)session.getAttribute("code");
+        //校验验证码（修改为从redis中获取）
+        String cacheCode = stringRedisTemplate.opsForValue().get(LOGIN_CODE_KEY + loginForm.getPhone());
         String code = loginForm.getCode();
         if (cacheCode == null || !cacheCode.equals(code)) {
             return Result.fail("验证码错误");
