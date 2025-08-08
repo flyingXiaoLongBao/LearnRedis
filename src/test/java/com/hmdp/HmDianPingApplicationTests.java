@@ -4,7 +4,8 @@ import com.hmdp.entity.Voucher;
 import com.hmdp.service.impl.ShopServiceImpl;
 import com.hmdp.utils.RedisIdWorker;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.data.redis.core.StringRedisTemplate;
 
@@ -12,6 +13,9 @@ import javax.annotation.Resource;
 import java.time.LocalDateTime;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+
+import static com.hmdp.utils.RedisConstants.SECKILL_STOCK_KEY;
 
 @SpringBootTest
 class HmDianPingApplicationTests {
@@ -24,6 +28,9 @@ class HmDianPingApplicationTests {
     @Resource
     private RedisIdWorker redisIdWorker;
 
+    @Resource
+    private RedissonClient redissonClient;
+
 
     /*
     * 开启一个线程池
@@ -32,8 +39,7 @@ class HmDianPingApplicationTests {
 
     @Test
     void testRedis() {
-        System.out.println("测试redis");
-        stringRedisTemplate.opsForValue().set("hmdp:test", "test");
+        stringRedisTemplate.opsForValue().set(SECKILL_STOCK_KEY + 10, "49");
     }
 
     @Test
@@ -70,5 +76,23 @@ class HmDianPingApplicationTests {
     void testAddSeckillVoucher(){
         Voucher voucher = new Voucher();
 
+    }
+
+    @Test
+    void testRedisson() throws InterruptedException {
+        //创建一把锁（可重入），指定锁的名称
+        RLock lock = redissonClient.getLock("hmdp:lock:test");
+        //尝试获取锁 参数分别是:获取锁的最大等待时间（期间会重试），锁自动释放时间，时间单位
+        boolean isLock = lock.tryLock(1,10, TimeUnit.SECONDS);
+
+        //判断是否成功
+        if(isLock){
+            try {
+                System.out.println("执行业务逻辑");
+            } finally {
+                //释放锁
+                lock.unlock();
+            }
+        }
     }
 }
